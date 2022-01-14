@@ -1,0 +1,144 @@
+spring:
+  application:
+    name: amala-redeempromo-transaction-getpromobycode
+  activemq:
+    broker-url: nio://10.173.3.11:16161
+    password: amala2019
+    username: admin
+  datasource:
+    cloudSqlInstance: amala-stg:asia-southeast1:amadbstg
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    password: amala2019
+    socketFactory: com.google.cloud.sql.mysql.SocketFactory
+    url: jdbc:mysql://localhost:9999/amala_db
+    useSSL: false
+    username: amala
+  jms:
+    brokerURL: nio://10.173.3.11:16161
+    password: amala2019
+    username: admin
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL5Dialect
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+      bootstrap-servers: 172.25.230.139:9092
+      group-id: amala
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      bootstrap-servers: 10.173.3.11:9092
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+    properties:
+      schema:
+        registry:
+          url: http://10.173.3.11:8081
+    topics:
+      log: commons.log
+  mvc:
+    throw-exception-if-no-handler-found: true
+  resources:
+    add-mappings: false
+server:
+  servlet:
+    context-path: /amala/reporting/v1.2
+  error:
+    whitelabel:
+      enabled: false
+integration:
+  contextpath: /amala/redeempromo/transaction/v1.2
+  operation:
+    getpromobycode: /getpromobycode
+  host: 0.0.0.0
+  port: 50012
+application:
+  session:
+    check: http://10.173.2.17/amala/user/v1.2/sessionintegration/extend
+    create: http://10.173.2.17/amala/user/v1.2/sessionintegration/authenticate
+controller:
+  mapping:
+    operation:
+      activate: /activate
+      create: /create
+      deactivate: /deactivate
+      delete: /delete
+      getclassbyairline: /getclassbyairline
+      getsubclasslist: /getsubclasslist
+      retrieve: /retrieve
+      retrieveDetail: /retrievedetail
+      update: /update
+      report: /report
+      generatefile: /generatefile
+      dailyreport: /dailyreport
+      dailyreportdownload: /dailyreportdownload
+path:
+  ip: https://amala.garuda-indonesia.com
+  location: /filestore/file-integration/uploads
+queue:
+  amala:
+    fixer:
+      checkmembertrx: amala.fixer.deletemembertrx
+      checkmemberid: amala.fixer.deletemembertrx.checkmemberid
+      checkmembertrxprocess: amala.fixer.deletemembertrx.process
+
+  log:
+    master: queue.log.master
+base:
+  path:
+#    news: /filestore/file-integration/uploads
+    news: /filestore/file-integration/report
+file:
+  initialDelay: 1000
+  consumerDelay: 6000
+  limit: 2000
+#  location: /filestore/file-integration/report
+  location: /filestore/file-integration/report
+url:
+  accrual:
+    catalog: http://10.173.2.17/amala/accrual/catalog/v1.2
+    rule: http://10.173.2.17/amala/accrual/rule/v1.2
+  award:
+    config: http://10.173.2.17/amala/award/config/v1.2
+  branch:
+    management: http://10.173.2.17/amala/branch/v1.2
+  cardinventory: http://10.173.2.17/amala/cardinventory/v1.2
+  master:
+    general: http://10.173.2.17/amala/master/general/v1.2
+    location: http://10.173.2.17/amala/master/location/v1.2
+    statement: http://10.173.2.17/amala/master/statement/v1.2
+  member:
+    account: http://10.173.2.17/amala/member/account/v1.2
+    activity: http://10.173.2.17/amala/member/activity/v1.2
+    card: http://10.173.2.17/amala/member/card/v1.2
+    earning: http://10.173.2.17/amala/member/transaction/earning/v1.2
+    profile: http://10.173.2.17/amala/member/profile/v1.2
+    tier: http://10.173.2.17/amala/member/tier/v1.2
+    transaction: http://10.173.2.17/amala/member/transaction/v1.2
+  partner:
+    management: http://10.173.2.17/amala/partner/v1.2
+  redemption:
+    certificate: http://10.173.2.17/amala/redemption/certificate/v1.2
+    transaction: http://10.173.2.17/amala/redemption/transaction/v1.2
+  tier:
+    management: http://10.173.2.17/amala/tier/v1.2
+  user:
+    management: http://10.173.2.17/amala/user/v1.2
+  retrieve:
+    role: http://10.173.2.17/amala/user/role/v1.2/retrievex
+  download: https://amala-api-pdt.garuda-indonesia.com
+throttle:
+  service:
+    fa: 1
+service:
+  retrieve:
+    membertier: http://10.173.2.17/amala/member/tier/v1.2/retrieve
+    memberlock: http://10.173.2.17/amala/member/profile/v1.2/memberlock/retrieve
+    membertransaction: http://10.173.2.17/amala/member/profile/v1.2/memberlock/retrieve
+    memberprofile: http://10.173.2.17/amala/member/profile/v1.2/memberprofile/profile
+
+logging:
+  level:
+    root: ERROR,INFO,DEBUG

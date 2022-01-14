@@ -1,0 +1,22 @@
+﻿spring:
+  application:
+    name: amala-redeempromo-transaction-getpromobycode
+
+camel:
+  springboot:
+    name: amala-redeempromo-transaction-getpromobycode
+
+integration:
+  contextpath: /amala/redeempromo/transaction/v1.2
+  operation:
+    getpromobycode: /getpromobycode
+  host: 0.0.0.0
+  port: 50012
+
+throttle:
+  service:
+    fa: 1
+
+logging:
+  level:
+    root: ERROR,INFO,DEBUG

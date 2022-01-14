@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd          http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+    <camelContext id="redeempromo-transaction-getpromobycode-service" trace="false" xmlns="http://camel.apache.org/schema/spring">
+        <!-- DATA FORMATS -->
+        <dataFormats>
+            <json id="jsonToMap" library="Gson"/>
+        </dataFormats>
+
+        <!-- START ONEXCEPTION -->
+        <onException>
+            <exception>java.lang.Exception</exception>
+            <handled>
+                <constant>true</constant>
+            </handled>
+            <setProperty propertyName="rescode">
+                <constant>9999</constant>
+            </setProperty>
+            <setProperty propertyName="resdesc">
+                <constant>Error</constant>
+            </setProperty>
+            <setProperty propertyName="resmsg">
+                <simple>${exception.stacktrace}</simple>
+            </setProperty>
+            <!--rollback when exception-->
+            <log message="error :: ${exception.stacktrace}"/>
+            <bean method="error" ref="Responses"/>
+            <setHeader headerName="CamelHttpResponseCode">
+                <constant>200</constant>
+            </setHeader>
+        </onException>
+        <!-- END ONEXCEPTION -->
+
+        <!-- EXPOSE REST -->
+        <restConfiguration bindingMode="auto" component="undertow"
+            contextPath="{{integration.contextpath}}" enableCORS="true"
+            host="{{integration.host}}" port="{{integration.port}}"/>
+        <rest id="rest-e2080056-ee72-44ef-bd6f-11f5ad7c2498">
+            <post consumes="application/json"
+                id="post-4bdf536a-d730-4a20-beaf-e2878795406c" uri="{{integration.operation.getpromobycode}}">
+                <to uri="direct:getpromobycode"/>
+            </post>
+        </rest>
+
+        <!-- ADAPTER ROUTE -->
+        <route id="getpromobycode-fa">
+            <from uri="direct:getpromobycode"/>
+            <throttle>
+                <simple>{{throttle.service.fa}}</simple>
+                <convertBodyTo type="java.lang.String"/>
+                <to uri="direct:process"/>
+            </throttle>
+        </route>
+
+        <!-- START MAIN ROUTE -->
+        <route id="main-process">
+            <from uri="direct:process"/>
+            <log message="\nSTART PROCESS(12-01 26-04-2021)\nrequest\n${body}"/>
+            <!-- set original request -->
+            <setProperty propertyName="originalrequest">
+                <simple>${body}</simple>
+            </setProperty>
+
+            <!-- set data request -->
+            <unmarshal ref="jsonToMap"/>
+            <setProperty propertyName="requestdata">
+                <simple>${body[parameter][data]}</simple>
+            </setProperty>
+
+            <!-- set identity request -->
+            <to uri="direct:save-identity"/>
+            <log message="${body}"/>
+
+            <!--validate request-->
+            <bean method="validateRequest" ref="Utils"/>
+            <log message="resmsg ::: ${property.resmsg}"/>
+            <choice>
+                <when>
+                    <simple>${property.resmsg} == ''</simple>
+                    <!--check useuniquepromocode value-->
+
+                    <!--get datetime-->
+                    <bean method="generateDateTimeNow" ref="Utils"/>
+                    <!--by promo_catalog_data-->
+                    <log message="promo_catalog_data query ::: SELECT DISTINCT rpc.* FROM redeem_promo_catalog rpc
+                                    JOIN redeem_promo_criteria rpc2 ON rpc.promocatalogcode = rpc2.promocatalogcode
+                                    JOIN redeem_promo_category rpc3 ON rpc2.promocriteriacode = rpc3.promocriteriacode
+                                    JOIN redeem_promo_data rpd on rpc3.promocategorycode =rpd.promocategorycode
+                                    WHERE rpc.promotype = :#${property.requestdata[promotype]}
+                                    and ((:#${property.datetimenow} BETWEEN rpc.startdate and rpc.enddate) OR (:#${property.datetimenow} >= rpc.startdate and rpc.enddate is null))
+                                    and rpc.active is TRUE and rpc.promocode = :#${property.requestdata[promocode]}"/>
+                    <to uri="sql:SELECT DISTINCT rpc.* FROM redeem_promo_catalog rpc
+                        JOIN redeem_promo_criteria rpc2 ON rpc.promocatalogcode = rpc2.promocatalogcode
+                        JOIN redeem_promo_category rpc3 ON rpc2.promocriteriacode = rpc3.promocriteriacode
+                        JOIN redeem_promo_data rpd on rpc3.promocategorycode =rpd.promocategorycode
+                        WHERE
+                        rpc.promotype = :#${property.requestdata[promotype]} and
+                        ((:#${property.datetimenow} BETWEEN rpc.startdate and rpc.enddate) OR (:#${property.datetimenow} >= rpc.startdate and rpc.enddate is null)) and
+                        rpc.active is TRUE and
+                        rpc.promocode = :#${property.requestdata[promocode]}?dataSource=dataSource"/>
+                    <log message="promo_catalog_data result ::: (${body.size}) ${body}"/>
+                    <choice>
+                        <when>
+                            <simple>${body.size} > 0</simple>
+                            <setProperty propertyName="promocatalog">
+                                <simple>${body}</simple>
+                            </setProperty>
+                            <to uri="direct:calculate-discount"/>
+                            <setProperty propertyName="status">
+                                <constant>SUCCESS</constant>
+                            </setProperty>
+                        </when>
+                        <otherwise>
+                            <!--by promo_catalog-->
+                            <log message="promo_catalog query ::: SELECT DISTINCT rpc.* FROM redeem_promo_catalog rpc WHERE promocode = :#${property.requestdata[promocode]} and promotype = :#${property.requestdata[promotype]} and ((:#${property.datetimenow} BETWEEN startdate and enddate) OR (:#${property.datetimenow} >= startdate and enddate is null)) and active is TRUE"/>
+                            <to uri="sql:SELECT DISTINCT rpc.* FROM redeem_promo_catalog rpc WHERE promocode = :#${property.requestdata[promocode]} and promotype = :#${property.requestdata[promotype]} and ((:#${property.datetimenow} BETWEEN startdate and enddate) OR (:#${property.datetimenow} >= startdate and enddate is null)) and active is TRUE?dataSource=dataSource"/>
+                            <log message="promo_catalog result ::: (${body.size}) ${body}"/>
+                            <choice>
+                                <when>
+                                    <simple>${body.size} > 0</simple>
+                                    <setProperty propertyName="promocatalog">
+                                        <simple>${body}</simple>
+                                    </setProperty>
+                                    <to uri="direct:calculate-discount"/>
+                                    <setProperty propertyName="status">
+                                        <constant>SUCCESS</constant>
+                                    </setProperty>
+                                </when>
+                                <otherwise>
+                                    <setBody>
+                                        <simple>${property.originalrequest}</simple>
+                                    </setBody>
+                                    <setProperty propertyName="rescode">
+                                        <constant>9003</constant>
+                                    </setProperty>
+                                    <setProperty propertyName="resdesc">
+                                        <constant>Data Not Found</constant>
+                                    </setProperty>
+                                    <setProperty propertyName="resmsg">
+                                        <simple>promocode (${property.requestdata[promocode]}) not found </simple>
+                                    </setProperty>
+                                    <bean method="error" ref="Responses"/>
+                                    <log message="error with ${property.resmsg}"/>
+                                    <log message="END PROCESS"/>
+                                </otherwise>
+                            </choice>
+                        </otherwise>
+                    </choice>
+                    <!--set response-->
+                    <choice>
+                        <when>
+                            <simple>${property.status} == 'SUCCESS'</simple>
+                            <log message="response result ::: ${property.promocatalog}"/>
+                            <!-- SET RESPONSE SUCCESS -->
+                            <setProperty propertyName="rescode">
+                                <constant>0000</constant>
+                            </setProperty>
+                            <setProperty propertyName="resdesc">
+                                <constant>Success</constant>
+                            </setProperty>
+                            <bean method="responseSuccess" ref="Utils"/>
+                            <log message="success with ${property.responsedata}"/>
+                            <log message="END PROCESS"/>
+                        </when>
+                    </choice>
+                </when>
+                <otherwise>
+                    <setBody>
+                        <simple>${property.originalrequest}</simple>
+                    </setBody>
+                    <setProperty propertyName="rescode">
+                        <constant>9005</constant>
+                    </setProperty>
+                    <setProperty propertyName="resdesc">
+                        <constant>Invalid Data</constant>
+                    </setProperty>
+                    <setProperty propertyName="resmsg">
+                        <simple>${property.resmsg}</simple>
+                    </setProperty>
+                    <bean method="error" ref="Responses"/>
+                    <log message="error with ${property.resmsg}"/>
+                    <log message="END PROCESS"/>
+                </otherwise>
+            </choice>
+        </route>
+
+        <!--process calculate discount-->
+        <route id="sub-calculate-discount">
+            <from uri="direct:calculate-discount"/>
+            <log message="calculate discount promo with promo ::: ${property.promocatalog}"/>
+            <bean method="calculatediscount" ref="Utils"/>
+        </route>
+
+        <!-- SAVE IDENTITY INTO PROPERTY -->
+        <route id="sub-save-identity">
+            <from uri="direct:save-identity"/>
+            <setBody>
+                <simple>${property.originalrequest}</simple>
+            </setBody>
+            <unmarshal ref="jsonToMap"/>
+            <setProperty propertyName="identity">
+                <simple>${body[identity]}</simple>
+            </setProperty>
+            <setProperty propertyName="reqtxnid">
+                <simple>${body[identity][reqtxnid]}</simple>
+            </setProperty>
+            <setProperty propertyName="reqdate">
+                <simple>${body[identity][reqdate]}</simple>
+            </setProperty>
+            <setProperty propertyName="appid">
+                <simple>${body[identity][appid]}</simple>
+            </setProperty>
+            <setProperty propertyName="userid">
+                <simple>${body[identity][userid]}</simple>
+            </setProperty>
+            <setProperty propertyName="signature">
+                <simple>${body[identity][signature]}</simple>
+            </setProperty>
+            <setProperty propertyName="seqno">
+                <simple>${body[identity][seqno]}</simple>
+            </setProperty>
+        </route>
+    </camelContext>
+</beans>
